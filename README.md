@@ -17,3 +17,6 @@ Parqueo / Tarifas / Abonos / Control
 - `scripts/mssql/` → script SQL para MS SQL Server
 - `scripts/oracle/` → script SQL para Oracle
 - `images/` → capturas de diagramas ER en cada motor y gestor
+=======
+# ParkSmart-project
+>>>>>>> 3fe0cb3aef1f670a83988f31d77869f829ee2eba
