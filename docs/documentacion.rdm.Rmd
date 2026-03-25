@@ -1,0 +1,324 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+------------------------------------------------------------------------
+
+title: "ParkSmart" subtitle: "Documentación de Base de Datos — MySQL y
+PostgreSQL" author: "Desarrollo Web — 2026" date: "`r Sys.Date()`"
+output: html_document: toc: true toc_float: true theme: flatly
+highlight: tango number_sections: true ---------------------
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+------------------------------------------------------------------------
+
+# Introducción
+
+El presente documento describe la implementación de la base de datos
+**ParkSmart**, un sistema orientado a la gestión de parqueaderos,
+incluyendo control de clientes, vehículos, entradas, tickets y pagos.
+
+Se desarrolló la misma estructura en dos motores de bases de datos:
+**MySQL 8.0** y **PostgreSQL 14**, permitiendo comparar su
+funcionamiento, sintaxis y características.
+
+------------------------------------------------------------------------
+
+# MySQL 8.0
+
+## Paso 1 — Acceso al motor
+
+``` bash
+sudo docker start mysql-server
+sudo docker exec -it mysql-server mysql -uroot -p12345
+```
+
+## Paso 2 — Creación de la base de datos
+
+``` sql
+CREATE DATABASE parksmart;
+USE parksmart;
+```
+
+## Paso 3 — Creación de tablas
+
+``` sql
+CREATE TABLE clients ( 
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  doc_type VARCHAR(20) NOT NULL,
+  doc_number VARCHAR(30) NOT NULL UNIQUE,
+  full_name VARCHAR(100) NOT NULL,
+  phone VARCHAR(20),
+  email VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vehicles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  client_id INT NOT NULL,
+  plate VARCHAR(20) NOT NULL UNIQUE,
+  brand VARCHAR(100),
+  description VARCHAR(200),
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+CREATE TABLE rates (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  amount_hour INT NOT NULL,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE employees (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  full_name VARCHAR(100) NOT NULL,
+  role VARCHAR(50) NOT NULL,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE shifts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  employee_id INT NOT NULL,
+  start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  end_time TIMESTAMP,
+  status VARCHAR(20) DEFAULT 'open',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
+CREATE TABLE entries (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  vehicle_id INT NOT NULL,
+  shift_id INT NOT NULL,
+  entry_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  exit_time TIMESTAMP,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+  FOREIGN KEY (shift_id) REFERENCES shifts(id)
+);
+
+CREATE TABLE tickets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  entry_id INT NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (entry_id) REFERENCES entries(id)
+);
+
+CREATE TABLE payments (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ticket_id INT NOT NULL,
+  rate_id INT NOT NULL,
+  method VARCHAR(50) NOT NULL,
+  amount BIGINT NOT NULL,
+  pay_date DATE NOT NULL,
+  reference VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(id),
+  FOREIGN KEY (rate_id) REFERENCES rates(id)
+);
+```
+
+## Paso 4 — Verificación
+
+``` sql
+SHOW TABLES;
+```
+
+![](images/Captura de pantalla 2026-03-22 143446.png)
+
+![](images/Captura de pantalla 2026-03-22 153402.png)
+
+![](images/Captura de pantalla 2026-03-22 160521.png)
+
+![](images/Captura de pantalla 2026-03-22 171834.png)
+
+------------------------------------------------------------------------
+
+# PostgreSQL 14
+
+## Paso 1 — Acceso al motor
+
+``` bash
+sudo docker start postgres-server
+docker exec -it postgres-server psql -Uroot
+```
+
+## Paso 2 — Crear base de datos
+
+``` sql
+CREATE DATABASE parksmart;
+\c parksmart
+```
+
+## Paso 3 — Creación de tablas
+
+``` sql
+CREATE TABLE clients ( 
+  id SERIAL PRIMARY KEY,
+  doc_type VARCHAR(20) NOT NULL,
+  doc_number VARCHAR(30) NOT NULL UNIQUE,
+  full_name VARCHAR(100) NOT NULL,
+  phone VARCHAR(20),
+  email VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vehicles (
+  id SERIAL PRIMARY KEY,
+  client_id INT REFERENCES clients(id),
+  plate VARCHAR(20) UNIQUE NOT NULL,
+  brand VARCHAR(100),
+  description VARCHAR(200),
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE rates (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100),
+  amount_hour INT,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  full_name VARCHAR(100),
+  role VARCHAR(50),
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE shifts (
+  id SERIAL PRIMARY KEY,
+  employee_id INT REFERENCES employees(id),
+  start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  end_time TIMESTAMP,
+  status VARCHAR(20) DEFAULT 'open',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE entries (
+  id SERIAL PRIMARY KEY,
+  vehicle_id INT REFERENCES vehicles(id),
+  shift_id INT REFERENCES shifts(id),
+  entry_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  exit_time TIMESTAMP,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tickets (
+  id SERIAL PRIMARY KEY,
+  entry_id INT UNIQUE REFERENCES entries(id),
+  name VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE payments (
+  id BIGSERIAL PRIMARY KEY,
+  ticket_id INT REFERENCES tickets(id),
+  rate_id INT REFERENCES rates(id),
+  method VARCHAR(50),
+  amount BIGINT,
+  pay_date DATE,
+  reference VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Paso 4 — Verificación
+
+``` sql
+\dt
+```
+
+![](images/Captura de pantalla 2026-03-24 075813.png)
+
+![](images/Captura de pantalla 2026-03-24 080956.png)
+
+![](images/Captura de pantalla 2026-03-24 105315.png)
+
+![](images/Captura de pantalla 2026-03-24 210407.png)
+
+------------------------------------------------------------------------
+
+# Diferencias entre Motores
+
+| Concepto                 | MySQL             | PostgreSQL        |
+|--------------------------|-------------------|-------------------|
+| Auto incremento          | AUTO_INCREMENT    | SERIAL            |
+| Fecha actual             | CURRENT_TIMESTAMP | CURRENT_TIMESTAMP |
+| Actualización automática | Sí                | No                |
+| Ver tablas               | SHOW TABLES       | \dt               |
+
+------------------------------------------------------------------------
+
+# Modelo de Datos
+
+## Tablas
+
+1.  clients
+2.  vehicles
+3.  rates
+4.  employees
+5.  shifts
+6.  entries
+7.  tickets
+8.  payments
+
+## Relaciones
+
+-   clients → vehicles
+-   vehicles → entries
+-   employees → shifts
+-   shifts → entries
+-   entries → tickets
+-   tickets → payments
+-   rates → payments
+
+------------------------------------------------------------------------
+
+# Conclusión
+
+Se logró implementar correctamente la base de datos ParkSmart en dos
+motores diferentes, evidenciando las diferencias en sintaxis y
+comportamiento, especialmente en el manejo de claves autoincrementales y
+timestamps.
+
+El modelo permite gestionar de manera eficiente la operación de un
+parqueadero, manteniendo integridad referencial entre las entidades
+principales del sistema.
